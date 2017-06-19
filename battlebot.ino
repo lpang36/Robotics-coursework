@@ -1,14 +1,14 @@
-int offset1 = 35; //difference in speed between wheels 
-int offset2 = 35; //difference in speed between wheels in a turn
+int offset1 = 0; //difference in speed between wheels 
+int offset2 = 0; //difference in speed between wheels in a turn
 int turntime1 = 900; //time for 90 degree turn
 int pos = 90; //initial sensor orientation
-int pos2 = 90;
-int speed = 100;
+int pos2 = 90; //initial attacking arm orientation
+int spd = 100; //initial speed
 
 #include <AFMotor.h>
 #include <Servo.h>
 
-//initialize wheel servo
+//initialize wheel and attacking arm servo
 Servo myservo;
 Servo attack;
 AF_DCMotor motorR(1); 
@@ -43,7 +43,7 @@ void advance(char a)          //Move forward
   motorL.setSpeed(a+offset1);
   motorR.run(FORWARD);
   motorL.run(FORWARD);
-  speed = a;
+  spd = a;
 }  
 void back_off (char a)          //Move backward
 {
@@ -51,9 +51,9 @@ void back_off (char a)          //Move backward
   motorL.setSpeed(a+offset1);
   motorR.run(BACKWARD);
   motorL.run(BACKWARD);
-  speed = -a;
+  spd = -a;
 }
-int turn (char a,char angle)             //Turn Left
+int turn (char a,char angle)             //Turn given angle
 {
   if (angle<0) {
   motorL.run(RELEASE);
@@ -65,6 +65,7 @@ int turn (char a,char angle)             //Turn Left
   motorL.setSpeed(a);  
   motorL.run(FORWARD);
   }
+  //output required time to make the turn 
   return abs(200.0/a*angle/90.0*turntime1);
 }
 //distance detected by sensor
@@ -85,25 +86,30 @@ float distance(int pin)
   range = (time*340.29/2/10000)-3; // convert to distance in centimeters
   return range;
 }
+//engage opponent
 void battle() {
   long event = millis();
+  //ram opponent at high speed
   advance(300);
   while(millis()-event<500) {
-  attack.write(180);
+  attack.write(180); //use attacking arm
   attack.write(90);
   }
   event = millis();
+  //retreat 
   back_off(300);
   while(millis()-event<500) {
   attack.write(180);
   attack.write(90);
   }
 }
+//approach opponent at increased speed
 void track() {
-  int delay = turn(speed,pos-90);
-  delay(delay);
-  advance(speed+10,speed+10);
+  int delay1 = turn(spd,pos-90); //move in direction of opponent
+  delay(delay1);
+  advance(spd+10);
 }
+//make decision based on distance
 void decision(int range) {
   if (range<5) {
     battle();
@@ -112,11 +118,13 @@ void decision(int range) {
     track();
   }
 }
+//scan for opponent
 void scan() {
+  //pan ultrasonic sensor
   for (pos; pos<181; pos++) {
     myservo.write(pos);
     float range = distance(pin);
-    decision(range);
+    decision(range); //make decision based on distance
     delay(1);
   }
   for (pos; pos>-1; pos--) {
@@ -128,8 +136,8 @@ void scan() {
 }
 void loop()
 {
-  //move forward
-  advance(speed,speed);
+  //move forward and scan for opponent
+  advance(spd);
   scan();
   delay(10);
 }
